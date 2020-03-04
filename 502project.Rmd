@@ -1,0 +1,126 @@
+---
+title: "502project"
+output: html_document
+---
+
+```{r }
+library(ggplot2) # Data visualization
+library(readr) # CSV file I/O, e.g. the read_csv function
+library(corrgram) # Correlograms http://www.datavis.ca/papers/corrgram.pdf
+
+library(devtools)
+
+# library(car) #required for nearest neighbors
+# library(FNN) # nearest neighbors techniques
+library(pROC) # to make ROC curve
+
+wine_data <- read.csv("winequality-red.csv", sep=",",header=T)
+
+head(wine_data)
+
+summary(wine_data$quality)
+
+table(wine_data$quality)
+
+# Linear Model
+# Here is first Linear Model with all the parameters against quality Check summary data, R-squared value , its not that great, we need to improve it by removing unwanted parameters
+
+
+linear_quality = lm(quality ~ fixed.acidity+volatile.acidity+citric.acid+residual.sugar+chlorides+free.sulfur.dioxide+total.sulfur.dioxide+density+pH+sulphates+alcohol, data=wine_data)
+print(linear_quality)
+
+summary(linear_quality)
+
+# check the relationship between all the parameters to evaluate the model
+corrgram(wine_data, lower.panel=panel.shade, upper.panel=panel.ellipse)
+
+linear_quality_1 = lm(quality ~ alcohol, data = wine_data)
+summary(linear_quality_1)
+
+# Let us consider only those parameters which have a significant impact on quality from above co-relation matrix
+
+linear_quality_4 = lm(quality ~ alcohol + volatile.acidity + citric.acid + sulphates, data = wine_data)
+summary(linear_quality_4)
+
+
+# Plot the models with with different parameters
+linear_quality.res = resid(linear_quality) # gets residuals
+linear_quality_1.res = resid(linear_quality_1)
+linear_quality_4.res = resid(linear_quality_4)
+
+plot(wine_data$alcohol, linear_quality.res) # plot residuals against alcohol variable
+points(wine_data$alcohol, linear_quality_1.res, col="red") # add the residuals for 1-dimension
+points(wine_data$alcohol, linear_quality_4.res, col="blue") # add residuals for 4 dimension
+
+# Now check the collinierity between parameters and command to check the same is vif
+
+plot(linear_quality_4)
+
+
+anova(linear_quality_4)
+
+linear_quality_5 = lm(quality ~ alcohol + volatile.acidity + sulphates, data = wine_data)
+summary(linear_quality_5)
+anova(linear_quality_5)
+
+summary(linear_quality_5)
+# 
+# Model validation¶
+# Split data into training and validation samples to test your model. We will use (train.size)% for training and (100-train.size)% for validation.
+
+
+set.seed(2018)
+train.size <- 0.8 
+train.index <- sample.int(length(wine_data$quality), round(length(wine_data$quality) * train.size))
+train.sample <- wine_data[train.index,]
+valid.sample <- wine_data[-train.index,]
+
+train.sample$Pred.quality <- predict(linear_quality_5, 
+                                     newdata = subset(train.sample, select=c(quality, alcohol, volatile.acidity, citric.acid, sulphates)))
+valid.sample$Pred.quality <- predict(linear_quality_5, 
+                                     newdata = subset(valid.sample, select=c(quality, alcohol, volatile.acidity, citric.acid, sulphates)))
+
+train.corr <- round(cor(train.sample$Pred.quality, train.sample$quality), 2)
+train.RMSE <- round(sqrt(mean((train.sample$Pred.quality - train.sample$quality)^2)))
+train.MAE <- round(mean(abs(train.sample$Pred.quality - train.sample$quality)))
+c(train.corr^2, train.RMSE, train.MAE)
+
+
+# Check how good is the model on the validation set - correlation^2, RME and MAE
+
+valid.corr <- round(cor(valid.sample$Pred.quality, valid.sample$quality), 2)
+valid.RMSE <- round(sqrt(mean((valid.sample$Pred.quality - valid.sample$quality)^2)))
+valid.MAE <- round(mean(abs(valid.sample$Pred.quality - valid.sample$quality)))
+c(valid.corr^2, valid.RMSE, valid.MAE)
+
+# Quality ~ alcohol
+cor(wine_data$quality,wine_data$alcohol)
+
+
+# Quality ~ acid
+cor(wine_data$quality,wine_data$citric.acid)
+
+
+# Quality ~ sulphates
+cor(wine_data$quality,wine_data$sulphates)
+
+
+
+# Below are few plots, just for checking their relation with quality
+plot(wine_data$quality,wine_data$alcohol,main="quality vs alcohol",xlab="quality",ylab="alcohol",col=6,pch=8)
+
+plot(wine_data$quality,wine_data$volatile.acidity,main="quality vs acidity",xlab="quality",ylab="volatile.acidity",col=6,pch=8)
+
+
+plot(wine_data$quality,wine_data$citric.acid,main="quality vs acid",xlab="quality",ylab="citric.acid",col=6,pch=8)
+
+
+plot(wine_data$quality,wine_data$sulphates,main="quality vs sulphates",xlab="quality",ylab="sulphates",col=6,pch=8)
+
+
+
+
+
+```
+
+
